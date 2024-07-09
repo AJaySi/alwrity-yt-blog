@@ -1,9 +1,7 @@
 import time
 import os
 import json
-from openai import OpenAI
 import streamlit as st
-from pytube import YouTube
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 import google.generativeai as genai
 from youtube_transcript_api import YouTubeTranscriptApi
