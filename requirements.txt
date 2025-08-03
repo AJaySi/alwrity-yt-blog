@@ -1,3 +1,6 @@
 streamlit
 youtube-transcript-api
 google.generativeai
+pytube
+requests
+pydub
