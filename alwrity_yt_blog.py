@@ -7,19 +7,29 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 import re
 
-# Load environment variables from .env file
+# Load environment variables from .env file (as fallback)
 load_dotenv()
 
+# Initialize session state for API keys if not already present
+if 'api_keys_set' not in st.session_state:
+    st.session_state.api_keys_set = False
+
+if 'assemblyai_key' not in st.session_state:
+    st.session_state.assemblyai_key = os.getenv('ASSEMBLYAI_API_KEY', '')
+    
+if 'gemini_key' not in st.session_state:
+    st.session_state.gemini_key = os.getenv('GEMINI_API_KEY', '')
+
 def validate_api_keys():
-    """Validate that required API keys are present"""
+    """Validate that required API keys are present in session state"""
     missing_keys = []
     
     # Check for AssemblyAI API key
-    if not os.getenv('ASSEMBLYAI_API_KEY'):
+    if not st.session_state.assemblyai_key:
         missing_keys.append("ASSEMBLYAI_API_KEY")
     
     # Check for Gemini API key
-    if not os.getenv('GEMINI_API_KEY'):
+    if not st.session_state.gemini_key:
         missing_keys.append("GEMINI_API_KEY")
     
     return missing_keys
@@ -38,9 +48,9 @@ def extract_video_id(url):
 
 def get_youtube_transcript(yt_url):
     """Extract transcript from YouTube video using AssemblyAI"""
-    ASSEMBLYAI_API_KEY = os.getenv('ASSEMBLYAI_API_KEY')
+    ASSEMBLYAI_API_KEY = st.session_state.assemblyai_key
     if not ASSEMBLYAI_API_KEY:
-        st.error("AssemblyAI API key not set. Please set the ASSEMBLYAI_API_KEY environment variable.")
+        st.error("AssemblyAI API key not set. Please set it in the API Keys section.")
         return None
         
     base_url = "https://api.assemblyai.com"
@@ -290,9 +300,9 @@ def summarize_youtube_video(yt_transcript):
 
 def generate_text_with_exception_handling(prompt):
     """Generate text using Gemini AI with proper error handling"""
-    api_key = os.getenv('GEMINI_API_KEY')
+    api_key = st.session_state.gemini_key
     if not api_key:
-        st.error("Gemini API key not set. Please set the GEMINI_API_KEY environment variable.")
+        st.error("Gemini API key not set. Please set it in the API Keys section.")
         return None
         
     try:
@@ -345,20 +355,44 @@ def main():
     
     st.title("🧕 Alwrity - AI Youtube link to Blog conversion")
     
+    # API Keys Section in Sidebar
+    st.sidebar.title("API Keys")
+    st.sidebar.info("Enter your API keys below. These will be stored in your session and not saved permanently.")
+    
+    # AssemblyAI API Key input
+    assemblyai_key = st.sidebar.text_input(
+        "AssemblyAI API Key",
+        value=st.session_state.assemblyai_key,
+        type="password",
+        help="Get your API key from https://www.assemblyai.com/"
+    )
+    
+    # Gemini API Key input
+    gemini_key = st.sidebar.text_input(
+        "Gemini API Key",
+        value=st.session_state.gemini_key,
+        type="password",
+        help="Get your API key from https://makersuite.google.com/app/apikey"
+    )
+    
+    # Save API keys to session state
+    if st.sidebar.button("Save API Keys"):
+        st.session_state.assemblyai_key = assemblyai_key
+        st.session_state.gemini_key = gemini_key
+        st.session_state.api_keys_set = True
+        st.sidebar.success("API keys saved for this session!")
+    
     # Check for missing API keys
     missing_keys = validate_api_keys()
     if missing_keys:
         st.error(f"⚠️ Missing API key(s): {', '.join(missing_keys)}")
-        st.info("""
-        To use this application, you need to set up the following API keys in a .env file:
-        - ASSEMBLYAI_API_KEY: For transcribing YouTube videos
-        - GEMINI_API_KEY: For generating blog content
+        st.info("Please enter your API keys in the sidebar.")
         
-        Create a file named .env in the same directory as this script with the following content:
-        ```
-        ASSEMBLYAI_API_KEY=your_assemblyai_api_key
-        GEMINI_API_KEY=your_gemini_api_key
-        ```
+        # Add links to get API keys
+        st.markdown("""  
+        ### How to get API keys:
+        - **AssemblyAI API Key**: Sign up at [AssemblyAI](https://www.assemblyai.com/)
+        - **Gemini API Key**: Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
         """)
         return
     
