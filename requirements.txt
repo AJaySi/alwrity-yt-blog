@@ -1,7 +1,5 @@
 streamlit
-youtube-transcript-api
-google.generativeai
-pytube
 requests
-pydub
 pytubefix
+google-generativeai
+python-dotenv
