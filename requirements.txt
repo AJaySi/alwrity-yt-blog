@@ -4,3 +4,4 @@ google.generativeai
 pytube
 requests
 pydub
+pytubefix
