@@ -6,6 +6,7 @@ from pytubefix import YouTube  # Changed from pytube to pytubefix
 import google.generativeai as genai
 from dotenv import load_dotenv
 import re
+import base64
 
 # Load environment variables from .env file (as fallback)
 load_dotenv()
@@ -345,90 +346,478 @@ def generate_text_with_exception_handling(prompt):
         st.error(f"Error generating text with Gemini: {str(e)}")
         return None
 
+def add_custom_css():
+    """Add custom CSS for better styling"""
+    st.markdown("""
+    <style>
+    /* Main app styling */
+    .main {
+        padding-top: 2rem;
+    }
+    
+    /* Header styling */
+    .header-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        text-align: center;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .header-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .header-subtitle {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+    
+    /* Card styling */
+    .info-card {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+        margin: 1rem 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .success-card {
+        background: #d4edda;
+        border-left-color: #28a745;
+        color: #155724;
+    }
+    
+    .warning-card {
+        background: #fff3cd;
+        border-left-color: #ffc107;
+        color: #856404;
+    }
+    
+    .error-card {
+        background: #f8d7da;
+        border-left-color: #dc3545;
+        color: #721c24;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* Input styling */
+    .stTextInput > div > div > input {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    /* Progress bar styling */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        background: #f8f9fa;
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+    }
+    
+    /* Status indicators */
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    
+    .status-success {
+        background-color: #28a745;
+    }
+    
+    .status-error {
+        background-color: #dc3545;
+    }
+    
+    .status-warning {
+        background-color: #ffc107;
+    }
+    
+    /* Copy button styling */
+    .copy-button {
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        font-size: 0.9rem;
+        margin-top: 1rem;
+    }
+    
+    .copy-button:hover {
+        background: #218838;
+    }
+    
+    /* Animation for loading */
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .loading {
+        animation: pulse 2s infinite;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+def create_header():
+    """Create an attractive header section"""
+    st.markdown("""
+    <div class="header-container">
+        <div class="header-title">🎬 Alwrity</div>
+        <div class="header-subtitle">Transform YouTube Videos into Engaging Blog Posts with AI</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def create_info_card(content, card_type="info"):
+    """Create styled info cards"""
+    card_class = f"info-card {card_type}-card" if card_type != "info" else "info-card"
+    st.markdown(f"""
+    <div class="{card_class}">
+        {content}
+    </div>
+    """, unsafe_allow_html=True)
+
+def create_status_indicator(status, text):
+    """Create status indicators with colored dots"""
+    status_class = f"status-{status}"
+    return f'<span class="status-indicator {status_class}"></span>{text}'
+
 def main():
     """Main application function"""
     st.set_page_config(
         page_title="Alwrity - AI YouTube to Blog Generator",
+        page_icon="🎬",
         layout="wide",
         initial_sidebar_state="expanded"
     )
     
-    st.title("🧕 Alwrity - AI Youtube link to Blog conversion")
+    # Add custom CSS
+    add_custom_css()
+    
+    # Create header
+    create_header()
     
     # API Keys Section in Sidebar
-    st.sidebar.title("API Keys")
-    st.sidebar.info("Enter your API keys below. These will be stored in your session and not saved permanently.")
+    st.sidebar.markdown("### 🔐 API Configuration")
+    st.sidebar.markdown("""
+    <div style="background: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        <small>🔒 Your API keys are stored securely in your session and are never saved permanently.</small>
+    </div>
+    """, unsafe_allow_html=True)
     
     # AssemblyAI API Key input
+    st.sidebar.markdown("#### 🎙️ AssemblyAI (Transcription)")
     assemblyai_key = st.sidebar.text_input(
-        "AssemblyAI API Key",
+        "API Key",
         value=st.session_state.assemblyai_key,
         type="password",
-        help="Get your API key from https://www.assemblyai.com/"
+        placeholder="Enter your AssemblyAI API key",
+        help="Get your API key from https://www.assemblyai.com/",
+        key="assemblyai_input"
     )
     
-    # Gemini API Key input
+    # Show status for AssemblyAI
+    if assemblyai_key:
+        st.sidebar.markdown(create_status_indicator("success", "AssemblyAI Connected"), unsafe_allow_html=True)
+    else:
+        st.sidebar.markdown(create_status_indicator("error", "AssemblyAI Not Connected"), unsafe_allow_html=True)
+    
+    st.sidebar.markdown("#### 🤖 Google Gemini (AI Generation)")
     gemini_key = st.sidebar.text_input(
-        "Gemini API Key",
+        "API Key",
         value=st.session_state.gemini_key,
         type="password",
-        help="Get your API key from https://makersuite.google.com/app/apikey"
+        placeholder="Enter your Gemini API key",
+        help="Get your API key from https://makersuite.google.com/app/apikey",
+        key="gemini_input"
     )
     
+    # Show status for Gemini
+    if gemini_key:
+        st.sidebar.markdown(create_status_indicator("success", "Gemini Connected"), unsafe_allow_html=True)
+    else:
+        st.sidebar.markdown(create_status_indicator("error", "Gemini Not Connected"), unsafe_allow_html=True)
+    
+    st.sidebar.markdown("---")
+    
     # Save API keys to session state
-    if st.sidebar.button("Save API Keys"):
-        st.session_state.assemblyai_key = assemblyai_key
-        st.session_state.gemini_key = gemini_key
-        st.session_state.api_keys_set = True
-        st.sidebar.success("API keys saved for this session!")
+    col1, col2 = st.sidebar.columns([1, 1])
+    with col1:
+        if st.button("💾 Save Keys", use_container_width=True):
+            st.session_state.assemblyai_key = assemblyai_key
+            st.session_state.gemini_key = gemini_key
+            st.session_state.api_keys_set = True
+            st.sidebar.success("✅ Keys saved!")
+    
+    with col2:
+        if st.button("🗑️ Clear", use_container_width=True):
+            st.session_state.assemblyai_key = ""
+            st.session_state.gemini_key = ""
+            st.session_state.api_keys_set = False
+            st.rerun()
     
     # Check for missing API keys
     missing_keys = validate_api_keys()
     if missing_keys:
-        st.error(f"⚠️ Missing API key(s): {', '.join(missing_keys)}")
-        st.info("Please enter your API keys in the sidebar.")
-        
-        # Add links to get API keys
-        st.markdown("""  
-        ### How to get API keys:
-        - **AssemblyAI API Key**: Sign up at [AssemblyAI](https://www.assemblyai.com/)
-        - **Gemini API Key**: Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
-        """)
-        return
-    
-    with st.expander("**PRO-TIP** - Better input yields better results", expanded=True):
-        yt_url = st.text_input(
-            '**Enter Full Youtube Video URL:**',
-            help="A YouTube URL, preferably less than 30 minutes for best results",
-            placeholder="https://www.youtube.com/watch?v=vQChW_jgCLM"
+        create_info_card(
+            f"""<h4>🔑 API Keys Required</h4>
+            <p>Please configure the following API keys in the sidebar:</p>
+            <ul>
+            {''.join([f'<li><strong>{key}</strong></li>' for key in missing_keys])}
+            </ul>""", 
+            "warning"
         )
         
-        st.write("Contact us for processing long videos (duration of hours), local audio files & other AI solutions for your business needs.")
+        # Create two columns for API key information
+        col1, col2 = st.columns(2)
         
-        col1, col2 = st.columns([1, 3])
         with col1:
-            generate_button = st.button('**Write YT Blog**', type="primary")
+            st.markdown("""
+            #### 🎙️ AssemblyAI Setup
+            1. Visit [AssemblyAI](https://www.assemblyai.com/)
+            2. Create a free account
+            3. Get your API key from the dashboard
+            4. Paste it in the sidebar
             
-    if generate_button:
-        if yt_url and (yt_url.startswith("https://www.youtube.com/") or yt_url.startswith("https://youtu.be/")):
-            with st.spinner("Hang On, Generating AI Blog..."):
-                yt_content = generate_yt_blog(yt_url)
-                if yt_content:
-                    st.subheader('**👩🔬👩🔬 Your Youtube Blog Content:**')
-                    st.markdown(yt_content)
-                    
-                    # Add download button for the content
-                    st.download_button(
-                        label="Download Blog as Markdown",
-                        data=yt_content,
-                        file_name="youtube_blog.md",
-                        mime="text/markdown"
-                    )
-                else:
-                    st.error("💥 **Failed to generate blog content. Please try again!**")
+            **Features:** High-quality transcription with language detection
+            """)
+        
+        with col2:
+            st.markdown("""
+            #### 🤖 Google Gemini Setup
+            1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+            2. Sign in with your Google account
+            3. Generate a new API key
+            4. Paste it in the sidebar
+            
+            **Features:** Advanced AI for blog content generation
+            """)
+        
+        return
+    
+    # Main content area
+    st.markdown("### 🎯 Convert YouTube Video to Blog")
+    
+    # Create input section with better styling
+    with st.container():
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
+                    padding: 2rem; border-radius: 15px; margin: 1rem 0; 
+                    border: 1px solid #dee2e6;">
+        """, unsafe_allow_html=True)
+        
+        st.markdown("#### 📹 Enter YouTube Video URL")
+        
+        # URL input with validation
+        yt_url = st.text_input(
+            "YouTube URL",
+            placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            help="📝 Paste any YouTube video URL here. Supports all YouTube URL formats.",
+            label_visibility="collapsed"
+        )
+        
+        # URL validation feedback
+        if yt_url:
+            video_id = extract_video_id(yt_url)
+            if video_id:
+                st.success(f"✅ Valid YouTube URL detected (Video ID: {video_id})")
+            else:
+                st.error("❌ Invalid YouTube URL format. Please check your URL.")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Pro tips section
+    with st.expander("💡 Pro Tips for Better Results", expanded=False):
+        st.markdown("""
+        **🎯 For best results:**
+        - Choose videos with clear audio and speech
+        - Educational or tutorial content works exceptionally well
+        - Videos between 5-30 minutes are optimal
+        - Avoid videos with too much background music
+        
+        **📊 Supported content:**
+        - Tutorials and how-to videos
+        - Interviews and podcasts
+        - Educational content
+        - Product reviews
+        - Webinars and presentations
+        """)
+    
+    # Generate button with enhanced styling
+    st.markdown("<br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        generate_clicked = st.button(
+            "🚀 Generate Blog Post", 
+            type="primary", 
+            use_container_width=True,
+            disabled=not yt_url or not extract_video_id(yt_url) if yt_url else True
+        )
+    
+    # Processing and results
+    if generate_clicked:
+        if not yt_url:
+            st.error("Please enter a YouTube URL.")
         else:
-            st.error("💥 **Please enter a valid YouTube URL!**")
+            # Create a results container
+            results_container = st.container()
+            
+            with results_container:
+                with st.spinner("🔄 Processing your request..."):
+                    blog_content = generate_yt_blog(yt_url)
+                    
+                if blog_content:
+                    # Success message with animation
+                    st.balloons()
+                    create_info_card(
+                        "<h4>🎉 Success!</h4><p>Your blog post has been generated successfully!</p>",
+                        "success"
+                    )
+                    
+                    # Display the blog content in a nice container
+                    st.markdown("---")
+                    st.markdown("## 📝 Generated Blog Post")
+                    
+                    # Blog content display
+                    with st.container():
+                        st.markdown("""
+                        <div style="background: white; padding: 2rem; border-radius: 10px; 
+                                    border: 1px solid #e9ecef; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                        """, unsafe_allow_html=True)
+                        
+                        st.markdown(blog_content)
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    # Action buttons
+                    st.markdown("---")
+                    col1, col2, col3 = st.columns([1, 1, 1])
+                    
+                    with col1:
+                        if st.button("📋 Copy to Clipboard", use_container_width=True):
+                            # JavaScript to copy to clipboard
+                            st.markdown("""
+                            <script>
+                            navigator.clipboard.writeText(`{}`).then(function() {{
+                                console.log('Content copied to clipboard');
+                            }});
+                            </script>
+                            """.format(blog_content.replace('`', '\\`')), unsafe_allow_html=True)
+                            st.success("Content copied to clipboard!")
+                    
+                    with col2:
+                        # Download as text file
+                        st.download_button(
+                            label="💾 Download as TXT",
+                            data=blog_content,
+                            file_name="youtube_blog_post.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
+                    
+                    with col3:
+                        # Download as markdown
+                        st.download_button(
+                            label="📄 Download as MD",
+                            data=blog_content,
+                            file_name="youtube_blog_post.md",
+                            mime="text/markdown",
+                            use_container_width=True
+                        )
+                    
+                    # Raw content for manual copying
+                    with st.expander("📋 Raw Content (for manual copying)"):
+                        st.text_area(
+                            "Blog content:",
+                            value=blog_content,
+                            height=300,
+                            help="Select all (Ctrl+A) and copy (Ctrl+C) this content.",
+                            label_visibility="collapsed"
+                        )
+                else:
+                    create_info_card(
+                        "<h4>❌ Generation Failed</h4><p>Unable to generate blog content. Please check your YouTube URL and API keys.</p>",
+                        "error"
+                    )
+
+    # Add footer with enhanced styling
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                padding: 2rem; border-radius: 15px; text-align: center; 
+                color: white; margin-top: 2rem;">
+        <h4 style="margin-bottom: 1rem; color: white;">🚀 Alwrity - AI Content Generator</h4>
+        <p style="margin-bottom: 1rem; opacity: 0.9;">Transform your YouTube content into engaging blog posts with the power of AI</p>
+        <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+            <div style="text-align: center;">
+                <div style="font-size: 2rem;">🎬</div>
+                <div style="font-size: 0.9rem;">YouTube Integration</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem;">🎙️</div>
+                <div style="font-size: 0.9rem;">AI Transcription</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem;">✍️</div>
+                <div style="font-size: 0.9rem;">Smart Blog Generation</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem;">📱</div>
+                <div style="font-size: 0.9rem;">User-Friendly Interface</div>
+            </div>
+        </div>
+        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2);">
+            <small>Made with ❤️ using Streamlit • Powered by AssemblyAI & Google Gemini</small>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
-
