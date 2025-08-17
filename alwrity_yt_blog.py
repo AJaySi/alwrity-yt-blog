@@ -11,28 +11,22 @@ import base64
 # Load environment variables from .env file (as fallback)
 load_dotenv()
 
-# Initialize session state for API keys if not already present
-if 'api_keys_set' not in st.session_state:
-    st.session_state.api_keys_set = False
+def _get_secret_or_env(var_name: str) -> str:
+    """Return value from Streamlit secrets if present, else environment, else empty."""
+    try:
+        if hasattr(st, 'secrets') and var_name in st.secrets:
+            return st.secrets.get(var_name, '')
+    except Exception:
+        pass
+    return os.getenv(var_name, '')
 
-if 'assemblyai_key' not in st.session_state:
-    st.session_state.assemblyai_key = os.getenv('ASSEMBLYAI_API_KEY', '')
-    
-if 'gemini_key' not in st.session_state:
-    st.session_state.gemini_key = os.getenv('GEMINI_API_KEY', '')
-
-def validate_api_keys():
-    """Validate that required API keys are present in session state"""
+def validate_api_keys(assemblyai_key: str, gemini_key: str):
+    """Validate that required API keys are present based on provided or env/secrets."""
     missing_keys = []
-    
-    # Check for AssemblyAI API key
-    if not st.session_state.assemblyai_key:
+    if not assemblyai_key:
         missing_keys.append("ASSEMBLYAI_API_KEY")
-    
-    # Check for Gemini API key
-    if not st.session_state.gemini_key:
+    if not gemini_key:
         missing_keys.append("GEMINI_API_KEY")
-    
     return missing_keys
 
 def extract_video_id(url):
@@ -47,9 +41,9 @@ def extract_video_id(url):
         return youtube_match.group(6)
     return None
 
-def get_youtube_transcript(yt_url):
+def get_youtube_transcript(yt_url, assemblyai_api_key: str):
     """Extract transcript from YouTube video using AssemblyAI"""
-    ASSEMBLYAI_API_KEY = st.session_state.assemblyai_key
+    ASSEMBLYAI_API_KEY = assemblyai_api_key
     if not ASSEMBLYAI_API_KEY:
         st.error("AssemblyAI API key not set. Please set it in the API Keys section.")
         return None
@@ -250,9 +244,9 @@ def get_youtube_transcript(yt_url):
             os.remove(temp_audio)
         return None
 
-def generate_yt_blog(yt_url):
+def generate_yt_blog(yt_url, assemblyai_api_key: str, gemini_api_key: str):
     """Generate a blog post from a YouTube video"""
-    transcript = get_youtube_transcript(yt_url)
+    transcript = get_youtube_transcript(yt_url, assemblyai_api_key)
     if not transcript:
         return None
         
@@ -260,9 +254,9 @@ def generate_yt_blog(yt_url):
     if len(transcript.split()) < 50:  # Less than 50 words
         st.warning("⚠️ The transcript is very short. The generated blog may not be comprehensive.")
         
-    return summarize_youtube_video(transcript)
+    return summarize_youtube_video(transcript, gemini_api_key)
 
-def summarize_youtube_video(yt_transcript):
+def summarize_youtube_video(yt_transcript, gemini_api_key: str):
     """Use Gemini AI to transform transcript into a blog post"""
     # Truncate transcript if it's too long for the model
     max_transcript_length = 25000  # Characters
@@ -293,15 +287,15 @@ def summarize_youtube_video(yt_transcript):
     '''
     
     try:
-        response = generate_text_with_exception_handling(prompt)
+        response = generate_text_with_exception_handling(prompt, gemini_api_key)
         return response
     except Exception as err:
         st.error(f"Failed to get response from LLM: {str(err)}")
         return None
 
-def generate_text_with_exception_handling(prompt):
+def generate_text_with_exception_handling(prompt, gemini_api_key: str):
     """Generate text using Gemini AI with proper error handling"""
-    api_key = st.session_state.gemini_key
+    api_key = gemini_api_key
     if not api_key:
         st.error("Gemini API key not set. Please set it in the API Keys section.")
         return None
@@ -550,59 +544,45 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # AssemblyAI API Key input
+    # AssemblyAI API Key input (never pre-filled)
     st.sidebar.markdown("#### 🎙️ AssemblyAI (Transcription)")
-    assemblyai_key = st.sidebar.text_input(
+    assemblyai_input = st.sidebar.text_input(
         "API Key",
-        value=st.session_state.assemblyai_key,
+        value="",
         type="password",
         placeholder="Enter your AssemblyAI API key",
         help="Get your API key from https://www.assemblyai.com/",
         key="assemblyai_input"
     )
     
-    # Show status for AssemblyAI
-    if assemblyai_key:
+    # Resolve effective AssemblyAI key (user input takes precedence, else env/secrets)
+    effective_assemblyai_key = assemblyai_input or _get_secret_or_env('ASSEMBLYAI_API_KEY')
+    if effective_assemblyai_key:
         st.sidebar.markdown(create_status_indicator("success", "AssemblyAI Connected"), unsafe_allow_html=True)
     else:
         st.sidebar.markdown(create_status_indicator("error", "AssemblyAI Not Connected"), unsafe_allow_html=True)
     
     st.sidebar.markdown("#### 🤖 Google Gemini (AI Generation)")
-    gemini_key = st.sidebar.text_input(
+    gemini_input = st.sidebar.text_input(
         "API Key",
-        value=st.session_state.gemini_key,
+        value="",
         type="password",
         placeholder="Enter your Gemini API key",
         help="Get your API key from https://makersuite.google.com/app/apikey",
         key="gemini_input"
     )
     
-    # Show status for Gemini
-    if gemini_key:
+    # Resolve effective Gemini key (user input takes precedence, else env/secrets)
+    effective_gemini_key = gemini_input or _get_secret_or_env('GEMINI_API_KEY')
+    if effective_gemini_key:
         st.sidebar.markdown(create_status_indicator("success", "Gemini Connected"), unsafe_allow_html=True)
     else:
         st.sidebar.markdown(create_status_indicator("error", "Gemini Not Connected"), unsafe_allow_html=True)
     
     st.sidebar.markdown("---")
     
-    # Save API keys to session state
-    col1, col2 = st.sidebar.columns([1, 1])
-    with col1:
-        if st.button("💾 Save Keys", use_container_width=True):
-            st.session_state.assemblyai_key = assemblyai_key
-            st.session_state.gemini_key = gemini_key
-            st.session_state.api_keys_set = True
-            st.sidebar.success("✅ Keys saved!")
-    
-    with col2:
-        if st.button("🗑️ Clear", use_container_width=True):
-            st.session_state.assemblyai_key = ""
-            st.session_state.gemini_key = ""
-            st.session_state.api_keys_set = False
-            st.rerun()
-    
-    # Check for missing API keys
-    missing_keys = validate_api_keys()
+    # Check for missing API keys (based on effective values)
+    missing_keys = validate_api_keys(effective_assemblyai_key, effective_gemini_key)
     if missing_keys:
         create_info_card(
             f"""<h4>🔑 API Keys Required</h4>
@@ -709,7 +689,7 @@ def main():
             
             with results_container:
                 with st.spinner("🔄 Processing your request..."):
-                    blog_content = generate_yt_blog(yt_url)
+                    blog_content = generate_yt_blog(yt_url, effective_assemblyai_key, effective_gemini_key)
                     
                 if blog_content:
                     # Success message with animation
